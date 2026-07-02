@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>STUDIO/01 — Photobooth</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#151319;
+    --panel:#1e1c24;
+    --panel-2:#26232d;
+    --line:#38343f;
+    --text:#f5f3ee;
+    --muted:#8b8894;
+    --red:#e2402f;
+    --amber:#f2a93b;
+    --mono: 'JetBrains Mono', monospace;
+    --disp: 'Bebas Neue', sans-serif;
+    --body: 'Inter', sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(circle at 15% -10%, rgba(242,169,59,.08), transparent 40%),
+      radial-gradient(circle at 90% 110%, rgba(226,64,47,.08), transparent 40%),
+      var(--bg);
+    color:var(--text);
+    font-family:var(--body);
+    min-height:100vh;
+    padding:28px 18px 60px;
+  }
+  .wrap{max-width:1120px;margin:0 auto;}
+
+  /* HEADER */
+  header{
+    display:flex;justify-content:space-between;align-items:flex-end;
+    border-bottom:1px solid var(--line);
+    padding-bottom:16px;margin-bottom:22px;
+    flex-wrap:wrap;gap:12px;
+  }
+  .brand{display:flex;align-items:baseline;gap:10px;}
+  .brand .mark{
+    width:12px;height:12px;border-radius:50%;
+    background:var(--red);
+    box-shadow:0 0 0 3px rgba(226,64,47,.2);
+  }
+  .brand h1{
+    font-family:var(--disp);
+    font-size:34px;letter-spacing:2px;margin:0;
+    line-height:1;
+  }
+  .brand span{color:var(--amber);}
+  .tagline{font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;}
+  .status{font-family:var(--mono);font-size:11px;color:var(--muted);text-align:right;line-height:1.6;}
+  .status b{color:var(--text);}
+  .dot-live{display:inline-block;width:7px;height:7px;border-radius:50%;background:#4caf6d;margin-right:5px;box-shadow:0 0 6px #4caf6d;}
+  .dot-off{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--muted);margin-right:5px;}
+
+  /* MAIN GRID */
+  main{display:grid;grid-template-columns:1.55fr 1fr;gap:22px;}
+  @media (max-width:880px){ main{grid-template-columns:1fr;} }
+
+  /* VIEWFINDER */
+  .viewfinder{
+    position:relative;
+    background:#000;
+    border:1px solid var(--line);
+    border-radius:4px;
+    overflow:hidden;
+    aspect-ratio:4/3;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .viewfinder video, .viewfinder canvas.livecanvas{
+    width:100%;height:100%;object-fit:cover;display:block;
+  }
+  .viewfinder video.mirror{transform:scaleX(-1);}
+  .placeholder{
+    font-family:var(--mono);color:var(--muted);font-size:12px;text-align:center;padding:20px;
+  }
+  .placeholder button{margin-top:12px;}
+
+  /* HUD overlay */
+  .hud{position:absolute;inset:0;pointer-events:none;font-family:var(--mono);}
+  .corner{position:absolute;width:22px;height:22px;border-color:var(--amber);opacity:.85;}
+  .corner.tl{top:14px;left:14px;border-top:2px solid;border-left:2px solid;}
+  .corner.tr{top:14px;right:14px;border-top:2px solid;border-right:2px solid;}
+  .corner.bl{bottom:14px;left:14px;border-bottom:2px solid;border-left:2px solid;}
+  .corner.br{bottom:14px;right:14px;border-bottom:2px solid;border-right:2px solid;}
+  .hud-readout{
+    position:absolute;top:14px;left:46px;
+    font-size:11px;color:var(--amber);letter-spacing:.5px;
+    display:flex;gap:14px;
+  }
+  .hud-readout span b{color:var(--text);font-weight:500;}
+  .hud-rec{
+    position:absolute;top:14px;right:46px;
+    font-size:11px;color:var(--red);display:flex;align-items:center;gap:6px;
+    opacity:0;transition:opacity .2s;
+  }
+  .hud-rec.on{opacity:1;}
+  .hud-rec .b{width:7px;height:7px;border-radius:50%;background:var(--red);animation:pulse 1s infinite;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.25;}}
+  .grid-overlay{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .2s;}
+  .grid-overlay.show{opacity:.35;}
+  .grid-overlay::before,.grid-overlay::after{content:'';position:absolute;background:var(--text);}
+  .grid-overlay::before{left:33.33%;top:0;bottom:0;width:1px;box-shadow:66.66% 0 0 var(--text);}
+  .grid-overlay .h1,.grid-overlay .h2{position:absolute;left:0;right:0;height:1px;background:var(--text);}
+  .grid-overlay .h1{top:33.33%;}
+  .grid-overlay .h2{top:66.66%;}
+
+  .vignette{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .3s;
+    background:radial-gradient(ellipse at center, transparent 45%, rgba(0,0,0,.55) 100%);}
+  .vignette.show{opacity:1;}
+
+  .countdown-num{
+    position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    font-family:var(--disp);font-size:140px;color:var(--text);
+    text-shadow:0 0 40px rgba(0,0,0,.6);
+    opacity:0;pointer-events:none;
+  }
+  .flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;}
+
+  .bottom-bar{
+    position:absolute;bottom:0;left:0;right:0;
+    display:flex;justify-content:space-between;align-items:center;
+    padding:10px 14px;
+    font-family:var(--mono);font-size:10px;color:var(--muted);
+    background:linear-gradient(transparent, rgba(0,0,0,.5));
+  }
+
+  /* CONTROLS PANEL */
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:4px;
+    padding:18px;
+    display:flex;flex-direction:column;gap:18px;
+  }
+  .section-label{
+    font-family:var(--mono);font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);
+    display:flex;align-items:center;gap:8px;margin-bottom:10px;
+  }
+  .section-label::after{content:'';flex:1;height:1px;background:var(--line);}
+
+  .filter-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+  .filter-swatch{
+    background:var(--panel-2);border:1px solid var(--line);border-radius:3px;
+    padding:8px 4px;text-align:center;cursor:pointer;
+    font-family:var(--mono);font-size:9.5px;color:var(--muted);
+    letter-spacing:.5px;text-transform:uppercase;
+    transition:all .15s;
+  }
+  .filter-swatch:hover{border-color:var(--amber);color:var(--text);}
+  .filter-swatch.active{border-color:var(--red);color:var(--text);background:rgba(226,64,47,.12);}
+
+  .slider-row{margin-bottom:12px;}
+  .slider-row:last-child{margin-bottom:0;}
+  .slider-row label{
+    display:flex;justify-content:space-between;
+    font-family:var(--mono);font-size:10.5px;color:var(--muted);margin-bottom:6px;
+  }
+  .slider-row label b{color:var(--text);font-weight:500;}
+  input[type=range]{
+    -webkit-appearance:none;width:100%;height:2px;background:var(--line);outline:none;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;width:13px;height:13px;border-radius:50%;
+    background:var(--amber);cursor:pointer;border:2px solid var(--bg);
+  }
+  input[type=range]::-moz-range-thumb{
+    width:13px;height:13px;border-radius:50%;background:var(--amber);cursor:pointer;border:2px solid var(--bg);
+  }
+
+  .toggle-row{display:flex;gap:8px;flex-wrap:wrap;}
+  .chip{
+    font-family:var(--mono);font-size:10px;letter-spacing:.5px;text-transform:uppercase;
+    padding:7px 12px;border-radius:20px;border:1px solid var(--line);
+    color:var(--muted);cursor:pointer;background:transparent;transition:all .15s;
+  }
+  .chip:hover{border-color:var(--amber);color:var(--text);}
+  .chip.active{background:var(--amber);border-color:var(--amber);color:#1a1a1a;font-weight:600;}
+
+  .timer-row{display:flex;gap:8px;}
+  .timer-row .chip{flex:1;text-align:center;}
+
+  .btn-row{display:flex;gap:10px;flex-wrap:wrap;}
+  button{
+    font-family:var(--body);font-weight:600;font-size:13px;
+    border:none;border-radius:3px;padding:12px 18px;cursor:pointer;
+    transition:transform .1s, opacity .15s;
+  }
+  button:active{transform:scale(.97);}
+  .btn-primary{background:var(--red);color:#fff;flex:1;}
+  .btn-primary:hover{opacity:.9;}
+  .btn-secondary{background:var(--panel-2);color:var(--text);border:1px solid var(--line);}
+  .btn-secondary:hover{border-color:var(--amber);}
+  .btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--line);font-size:11px;padding:8px 12px;}
+  .btn-ghost:hover{color:var(--text);border-color:var(--muted);}
+  button:disabled{opacity:.4;cursor:not-allowed;}
+
+  /* FILM STRIP GALLERY */
+  .filmstrip-wrap{
+    background:var(--panel);border:1px solid var(--line);border-radius:4px;
+    padding:16px 18px;margin-top:22px;
+  }
+  .filmstrip{
+    display:flex;gap:14px;overflow-x:auto;padding:14px 0 6px;
+  }
+  .frame{
+    position:relative;flex:0 0 auto;width:150px;
+    background:#0c0c0e;border:6px solid #0c0c0e;border-radius:2px;
+  }
+  .frame img{width:100%;display:block;border-radius:1px;}
+  .frame .sprockets{position:absolute;top:0;bottom:0;width:6px;left:-6px;
+    background-image:radial-gradient(circle, #151319 2.5px, transparent 2.6px);
+    background-size:100% 14px;background-position:center;}
+  .frame .sprockets.right{left:auto;right:-6px;}
+  .frame .frame-actions{
+    display:flex;justify-content:space-between;align-items:center;
+    margin-top:6px;font-family:var(--mono);font-size:9px;color:var(--muted);
+  }
+  .frame .frame-actions a{color:var(--amber);text-decoration:none;}
+  .empty-msg{font-family:var(--mono);font-size:11px;color:var(--muted);padding:20px 0;text-align:center;}
+
+  footer{text-align:center;font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:30px;letter-spacing:.5px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div>
+      <div class="brand">
+        <span class="mark"></span>
+        <h1>STUDIO<span>/01</span></h1>
+      </div>
+      <div class="tagline">Photobooth digital — bidik, atur, cetak</div>
+    </div>
+    <div class="status" id="statusBox">
+      <div><span class="dot-off" id="camDot"></span><b id="camStatus">Kamera belum aktif</b></div>
+      <div id="resStatus">— × —</div>
+    </div>
+  </header>
+
+  <main>
+    <!-- VIEWFINDER -->
+    <div>
+      <div class="viewfinder" id="viewfinder">
+        <div class="placeholder" id="placeholder">
+          Kamera belum diaktifkan.<br>
+          <button class="btn-primary" id="startCamBtn" style="margin-top:12px;">Aktifkan Kamera</button>
+        </div>
+        <video id="video" autoplay playsinline style="display:none;"></video>
+        <canvas id="captureCanvas" style="display:none;"></canvas>
+
+        <div class="hud">
+          <div class="corner tl"></div><div class="corner tr"></div>
+          <div class="corner bl"></div><div class="corner br"></div>
+          <div class="hud-readout">
+            <span>ISO <b id="isoVal">100</b></span>
+            <span>f/<b id="fVal">2.8</b></span>
+            <span><b id="shutterVal">1/125</b></span>
+          </div>
+          <div class="hud-rec" id="recIndicator"><span class="b"></span>REC</div>
+        </div>
+        <div class="grid-overlay" id="gridOverlay"><div class="h1"></div><div class="h2"></div></div>
+        <div class="vignette" id="vignetteEl"></div>
+        <div class="countdown-num" id="countdownNum"></div>
+        <div class="flash" id="flashEl"></div>
+
+        <div class="bottom-bar">
+          <span id="modeLabel">MODE: SINGLE</span>
+          <span id="filterLabel">FILTER: NORMAL</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- CONTROLS -->
+    <div class="panel">
+      <div>
+        <div class="section-label">Filter Lensa</div>
+        <div class="filter-grid" id="filterGrid"></div>
+      </div>
+
+      <div>
+        <div class="section-label">Penyesuaian</div>
+        <div class="slider-row">
+          <label>Brightness <b id="bLabel">100%</b></label>
+          <input type="range" id="brightness" min="40" max="160" value="100">
+        </div>
+        <div class="slider-row">
+          <label>Contrast <b id="cLabel">100%</b></label>
+          <input type="range" id="contrast" min="40" max="160" value="100">
+        </div>
+        <div class="slider-row">
+          <label>Saturation <b id="sLabel">100%</b></label>
+          <input type="range" id="saturate" min="0" max="200" value="100">
+        </div>
+      </div>
+
+      <div>
+        <div class="section-label">Opsi Bidikan</div>
+        <div class="toggle-row">
+          <button class="chip active" id="mirrorChip">Mirror: ON</button>
+          <button class="chip" id="gridChip">Grid: OFF</button>
+          <button class="chip" id="soundChip">Suara: ON</button>
+        </div>
+      </div>
+
+      <div>
+        <div class="section-label">Mode & Timer</div>
+        <div class="toggle-row" style="margin-bottom:10px;">
+          <button class="chip active" id="modeSingleChip">Single Shot</button>
+          <button class="chip" id="modeStripChip">Film Strip (4x)</button>
+        </div>
+        <div class="timer-row">
+          <button class="chip active" data-t="0">0s</button>
+          <button class="chip" data-t="3">3s</button>
+          <button class="chip" data-t="5">5s</button>
+          <button class="chip" data-t="10">10s</button>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn-primary" id="shootBtn" disabled>Ambil Foto</button>
+      </div>
+      <div class="btn-row">
+        <button class="btn-secondary" id="switchCamBtn" style="flex:1;" disabled>Ganti Kamera</button>
+        <button class="btn-ghost" id="clearBtn">Bersihkan Galeri</button>
+      </div>
+    </div>
+  </main>
+
+  <!-- FILM STRIP GALLERY -->
+  <div class="filmstrip-wrap">
+    <div class="section-label">Hasil Jepretan</div>
+    <div class="filmstrip" id="filmstrip">
+      <div class="empty-msg" id="emptyMsg">Belum ada foto. Ambil bidikan pertamamu.</div>
+    </div>
+  </div>
+
+  <footer>STUDIO/01 — dijalankan sepenuhnya di browser, tidak ada foto yang diunggah ke server mana pun.</footer>
+</div>
+
+<script>
+(function(){
+  const video = document.getElementById('video');
+  const placeholder = document.getElementById('placeholder');
+  const startCamBtn = document.getElementById('startCamBtn');
+  const switchCamBtn = document.getElementById('switchCamBtn');
+  const shootBtn = document.getElementById('shootBtn');
+  const captureCanvas = document.getElementById('captureCanvas');
+  const camDot = document.getElementById('camDot');
+  const camStatus = document.getElementById('camStatus');
+  const resStatus = document.getElementById('resStatus');
+  const countdownNum = document.getElementById('countdownNum');
+  const flashEl = document.getElementById('flashEl');
+  const recIndicator = document.getElementById('recIndicator');
+  const gridOverlay = document.getElementById('gridOverlay');
+  const vignetteEl = document.getElementById('vignetteEl');
+  const filmstrip = document.getElementById('filmstrip');
+  const emptyMsg = document.getElementById('emptyMsg');
+  const modeLabel = document.getElementById('modeLabel');
+  const filterLabel = document.getElementById('filterLabel');
+  const isoVal = document.getElementById('isoVal');
+  const fVal = document.getElementById('fVal');
+  const shutterVal = document.getElementById('shutterVal');
+
+  let stream = null;
+  let currentFacing = 'user';
+  let mirrored = true;
+  let gridOn = false;
+  let soundOn = true;
+  let mode = 'single'; // or 'strip'
+  let timerSecs = 0;
+  let activePreset = 'normal';
+  let photos = []; // {url, w, h}
+
+  const presets = {
+    normal:   {name:'Normal',   extra:'', vignette:false},
+    noir:     {name:'Noir',     extra:'grayscale(100%) contrast(1.15)', vignette:false},
+    sepia:    {name:'Sepia',    extra:'sepia(75%)', vignette:false},
+    vivid:    {name:'Vivid',    extra:'saturate(1.6) contrast(1.05)', vignette:false},
+    cool:     {name:'Cool',     extra:'hue-rotate(-8deg) saturate(1.15) contrast(1.03)', vignette:false},
+    warm:     {name:'Warm',     extra:'sepia(25%) saturate(1.25) brightness(1.03)', vignette:false},
+    vintage:  {name:'Vintage',  extra:'sepia(35%) contrast(1.1) brightness(0.95) saturate(1.1)', vignette:true},
+    dramatic: {name:'Dramatic', extra:'contrast(1.35) brightness(0.9) saturate(0.75)', vignette:true},
+  };
+
+  // Build filter swatches
+  const filterGrid = document.getElementById('filterGrid');
+  Object.keys(presets).forEach(key=>{
+    const el = document.createElement('div');
+    el.className = 'filter-swatch' + (key==='normal' ? ' active':'');
+    el.textContent = presets[key].name;
+    el.dataset.key = key;
+    el.addEventListener('click', ()=>{
+      document.querySelectorAll('.filter-swatch').forEach(s=>s.classList.remove('active'));
+      el.classList.add('active');
+      activePreset = key;
+      filterLabel.textContent = 'FILTER: ' + presets[key].name.toUpperCase();
+      applyLiveFilter();
+    });
+    filterGrid.appendChild(el);
+  });
+
+  const brightnessSlider = document.getElementById('brightness');
+  const contrastSlider = document.getElementById('contrast');
+  const saturateSlider = document.getElementById('saturate');
+  const bLabel = document.getElementById('bLabel');
+  const cLabel = document.getElementById('cLabel');
+  const sLabel = document.getElementById('sLabel');
+
+  function currentFilterString(){
+    const b = brightnessSlider.value, c = contrastSlider.value, s = saturateSlider.value;
+    const preset = presets[activePreset];
+    return `brightness(${b}%) contrast(${c}%) saturate(${s}%) ${preset.extra}`.trim();
+  }
+
+  function applyLiveFilter(){
+    const f = currentFilterString();
+    video.style.filter = f;
+    vignetteEl.classList.toggle('show', presets[activePreset].vignette);
+    updateHud();
+  }
+
+  function updateHud(){
+    const b = parseInt(brightnessSlider.value), c = parseInt(contrastSlider.value), s = parseInt(saturateSlider.value);
+    bLabel.textContent = b + '%';
+    cLabel.textContent = c + '%';
+    sLabel.textContent = s + '%';
+    // cosmetic mock camera readout, purely for atmosphere
+    const iso = Math.round(100 + (100 - b) * 6.4);
+    const ap = (2.8 - (c-100)/200).toFixed(1);
+    const shutterDenom = Math.max(30, Math.round(125 - (s-100)*0.5));
+    isoVal.textContent = Math.max(50, iso);
+    fVal.textContent = Math.max(1.4, ap);
+    shutterVal.textContent = '1/' + shutterDenom;
+  }
+  [brightnessSlider, contrastSlider, saturateSlider].forEach(sl=>{
+    sl.addEventListener('input', applyLiveFilter);
+  });
+
+  // Toggles
+  const mirrorChip = document.getElementById('mirrorChip');
+  mirrorChip.addEventListener('click', ()=>{
+    mirrored = !mirrored;
+    mirrorChip.textContent = 'Mirror: ' + (mirrored?'ON':'OFF');
+    mirrorChip.classList.toggle('active', mirrored);
+    video.classList.toggle('mirror', mirrored);
+  });
+  const gridChip = document.getElementById('gridChip');
+  gridChip.addEventListener('click', ()=>{
+    gridOn = !gridOn;
+    gridChip.textContent = 'Grid: ' + (gridOn?'ON':'OFF');
+    gridChip.classList.toggle('active', gridOn);
+    gridOverlay.classList.toggle('show', gridOn);
+  });
+  const soundChip = document.getElementById('soundChip');
+  soundChip.addEventListener('click', ()=>{
+    soundOn = !soundOn;
+    soundChip.textContent = 'Suara: ' + (soundOn?'ON':'OFF');
+    soundChip.classList.toggle('active', soundOn);
+  });
+
+  const modeSingleChip = document.getElementById('modeSingleChip');
+  const modeStripChip = document.getElementById('modeStripChip');
+  modeSingleChip.addEventListener('click', ()=>{
+    mode='single';
+    modeSingleChip.classList.add('active'); modeStripChip.classList.remove('active');
+    modeLabel.textContent = 'MODE: SINGLE';
+    shootBtn.textContent = 'Ambil Foto';
+  });
+  modeStripChip.addEventListener('click', ()=>{
+    mode='strip';
+    modeStripChip.classList.add('active'); modeSingleChip.classList.remove('active');
+    modeLabel.textContent = 'MODE: FILM STRIP';
+    shootBtn.textContent = 'Ambil 4 Foto';
+  });
+
+  document.querySelectorAll('.timer-row .chip').forEach(chip=>{
+    chip.addEventListener('click', ()=>{
+      document.querySelectorAll('.timer-row .chip').forEach(c=>c.classList.remove('active'));
+      chip.classList.add('active');
+      timerSecs = parseInt(chip.dataset.t);
+    });
+  });
+
+  // Audio shutter click via WebAudio (no external files)
+  let audioCtx;
+  function playShutter(){
+    if(!soundOn) return;
+    try{
+      audioCtx = audioCtx || new (window.AudioContext||window.webkitAudioContext)();
+      const t = audioCtx.currentTime;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(1200, t);
+      osc.frequency.exponentialRampToValueAtTime(300, t+0.06);
+      gain.gain.setValueAtTime(0.15, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t+0.09);
+      osc.connect(gain).connect(audioCtx.destination);
+      osc.start(t); osc.stop(t+0.1);
+    }catch(e){}
+  }
+
+  // Camera
+  async function startCamera(facing){
+    try{
+      if(stream){ stream.getTracks().forEach(t=>t.stop()); }
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: facing, width:{ideal:1280}, height:{ideal:960} },
+        audio:false
+      });
+      video.srcObject = stream;
+      video.style.display = 'block';
+      placeholder.style.display = 'none';
+      video.classList.toggle('mirror', mirrored);
+      applyLiveFilter();
+      camDot.className = 'dot-live';
+      camStatus.textContent = 'Kamera aktif';
+      shootBtn.disabled = false;
+      switchCamBtn.disabled = false;
+      video.addEventListener('loadedmetadata', ()=>{
+        resStatus.textContent = video.videoWidth + ' × ' + video.videoHeight;
+      }, {once:true});
+    }catch(err){
+      camStatus.textContent = 'Akses kamera ditolak/gagal';
+      placeholder.innerHTML = 'Tidak bisa mengakses kamera.<br><span style="color:var(--red)">' + (err.message||'Izin ditolak') + '</span><br><button class="btn-primary" id="retryBtn" style="margin-top:12px;">Coba Lagi</button>';
+      document.getElementById('retryBtn').addEventListener('click', ()=>startCamera(currentFacing));
+    }
+  }
+
+  startCamBtn.addEventListener('click', ()=>startCamera(currentFacing));
+  switchCamBtn.addEventListener('click', ()=>{
+    currentFacing = currentFacing === 'user' ? 'environment' : 'user';
+    startCamera(currentFacing);
+  });
+
+  // Countdown + capture
+  function wait(ms){ return new Promise(r=>setTimeout(r, ms)); }
+
+  async function runCountdown(){
+    if(timerSecs === 0) return;
+    for(let i=timerSecs;i>=1;i--){
+      countdownNum.textContent = i;
+      countdownNum.style.opacity = 1;
+      countdownNum.style.transform = 'scale(1.15)';
+      await wait(150);
+      countdownNum.style.transform = 'scale(1)';
+      await wait(850);
+    }
+    countdownNum.style.opacity = 0;
+  }
+
+  function doFlash(){
+    flashEl.style.transition = 'none';
+    flashEl.style.opacity = 0.85;
+    requestAnimationFrame(()=>{
+      flashEl.style.transition = 'opacity .35s ease';
+      flashEl.style.opacity = 0;
+    });
+  }
+
+  function captureFrame(){
+    const w = video.videoWidth, h = video.videoHeight;
+    captureCanvas.width = w;
+    captureCanvas.height = h;
+    const ctx = captureCanvas.getContext('2d');
+    ctx.save();
+    ctx.filter = currentFilterString();
+    if(mirrored){
+      ctx.translate(w,0);
+      ctx.scale(-1,1);
+    }
+    ctx.drawImage(video, 0, 0, w, h);
+    ctx.restore();
+
+    // vignette baked in for vintage/dramatic
+    if(presets[activePreset].vignette){
+      const grad = ctx.createRadialGradient(w/2,h/2, h*0.25, w/2,h/2, h*0.7);
+      grad.addColorStop(0,'rgba(0,0,0,0)');
+      grad.addColorStop(1,'rgba(0,0,0,0.55)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0,0,w,h);
+    }
+    return captureCanvas.toDataURL('image/png');
+  }
+
+  function addPhotoToGallery(dataUrl){
+    emptyMsg.style.display = 'none';
+    const frame = document.createElement('div');
+    frame.className = 'frame';
+    frame.innerHTML = `
+      <div class="sprockets"></div>
+      <div class="sprockets right"></div>
+      <img src="${dataUrl}" alt="Hasil jepretan">
+      <div class="frame-actions">
+        <span>#${photos.length+1}</span>
+        <a download="studio01-${Date.now()}.png" href="${dataUrl}">Unduh</a>
+      </div>
+    `;
+    filmstrip.appendChild(frame);
+    filmstrip.scrollLeft = filmstrip.scrollWidth;
+    photos.push(dataUrl);
+  }
+
+  function composeStrip(shots){
+    return new Promise(resolve=>{
+      const imgs = shots.map(src=>{ const i = new Image(); i.src = src; return i; });
+      let loaded = 0;
+      imgs.forEach(img=>{
+        img.onload = ()=>{
+          loaded++;
+          if(loaded === imgs.length){
+            const pad = 24, gap = 18, sprocket = 14;
+            const cw = imgs[0].width;
+            const ch = imgs[0].height;
+            const canvas = document.createElement('canvas');
+            canvas.width = cw + pad*2 + sprocket*2;
+            canvas.height = ch*imgs.length + gap*(imgs.length-1) + pad*2 + 60;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#0c0c0e';
+            ctx.fillRect(0,0,canvas.width,canvas.height);
+            imgs.forEach((img,i)=>{
+              const y = pad + i*(ch+gap);
+              ctx.drawImage(img, pad+sprocket, y, cw, ch);
+            });
+            // sprocket holes
+            ctx.fillStyle = '#151319';
+            for(let side=0; side<2; side++){
+              const x = side===0 ? pad/2+2 : canvas.width - pad/2 - 2;
+              for(let y=10; y<canvas.height-10; y+=20){
+                ctx.beginPath();
+                ctx.arc(x, y, 4, 0, Math.PI*2);
+                ctx.fill();
+              }
+            }
+            ctx.fillStyle = '#8b8894';
+            ctx.font = '20px "Bebas Neue", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('STUDIO/01', canvas.width/2, canvas.height - 22);
+            resolve(canvas.toDataURL('image/png'));
+          }
+        };
+      });
+    });
+  }
+
+  async function shoot(){
+    shootBtn.disabled = true;
+    recIndicator.classList.add('on');
+    if(mode === 'single'){
+      await runCountdown();
+      doFlash();
+      playShutter();
+      await wait(80);
+      const dataUrl = captureFrame();
+      addPhotoToGallery(dataUrl);
+    } else {
+      const shots = [];
+      for(let i=0;i<4;i++){
+        await runCountdown();
+        doFlash();
+        playShutter();
+        await wait(80);
+        shots.push(captureFrame());
+        if(i<3) await wait(500);
+      }
+      const stripUrl = await composeStrip(shots);
+      emptyMsg.style.display = 'none';
+      const frame = document.createElement('div');
+      frame.className = 'frame';
+      frame.style.width = '110px';
+      frame.innerHTML = `
+        <div class="sprockets"></div>
+        <div class="sprockets right"></div>
+        <img src="${stripUrl}" alt="Film strip">
+        <div class="frame-actions">
+          <span>STRIP</span>
+          <a download="studio01-strip-${Date.now()}.png" href="${stripUrl}">Unduh</a>
+        </div>
+      `;
+      filmstrip.appendChild(frame);
+      filmstrip.scrollLeft = filmstrip.scrollWidth;
+      photos.push(stripUrl);
+    }
+    recIndicator.classList.remove('on');
+    shootBtn.disabled = false;
+  }
+
+  shootBtn.addEventListener('click', shoot);
+
+  document.getElementById('clearBtn').addEventListener('click', ()=>{
+    photos = [];
+    filmstrip.innerHTML = '';
+    filmstrip.appendChild(emptyMsg);
+    emptyMsg.style.display = 'block';
+  });
+
+  updateHud();
+})();
+</script>
+</body>
+</html>
